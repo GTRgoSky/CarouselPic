@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <!-- <link rel="stylesheet" href="../iview.css">
+    <link rel="stylesheet" href="../ivew_icon.css"> -->
+    <link rel="stylesheet" href="../eleme.css">
+    <link rel="stylesheet" href="../eleme_icon.css">
+    <script src="../jquery-2.1.1.js"></script>
+    <!-- <script src="../iview.js"></script> -->
+    <style>
+        .none{
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="formVue">
+        <vue-select v-model="formData.selectOne" v-on:cval="selectChange">
+            <vue-option v-for="item in getOption.selectData" :value="item.id">{{item.name}}</vue-option>
+            <vue-option :value="5">选项5</vue-option>
+        </vue-select>
+        <vue-radio-group v-model="formData.radioOne" v-on:cval="radioChange">
+            <vue-radio v-for="item in getOption.radioData" :value="item.id" :name="'num'">{{item.name}}</vue-radio>
+            <vue-radio :value="5" :name="'num'">选项5</vue-radio>
+        </vue-radio-group>
+        <vue-checkbox-group v-model="formData.checkOne" v-on:cval="checkChange">
+            <vue-checkbox v-for='item in getOption.checkData' :value="item.id">
+                {{item.name}}
+            </vue-checkbox>
+            <vue-checkbox :value="5">选项5</vue-checkbox>
+        </vue-checkbox-group>
+        <!-- <label v-for='item in getOption.checkData'>
+            <input type='checkbox' :value='item.id' v-model='formData.checkOne' />
+            {{item.name}}
+        </label>
+        <label><input type='checkbox' value='5' v-model='formData.checkOne'/>选项5</label> -->
+        <pre>{{$data | json}}</pre>
+    </div>
+
+    <script src="./vue.min.js"></script>
+    <script src="../eleme.js"></script>
+    <script>
+        Array.prototype.remove = function(val) {
+            var index = this.indexOf(val);
+            if (index > -1) {
+                this.splice(index, 1);
+            }
+        };
+        function formCom(option, fnobj, initcb, endcb) {
+
+            //*****************实例方法*************************//
+            var defaultOp = { //默认配置
+                isJson: true,
+                getOption: {},
+                formData:{}
+            }
+            option = $.extend({}, defaultOp, option);
+            var vm = new Vue({
+                el: "#formVue",
+                data: {
+                    formData: option.formData,
+                    getOption: option.getOption, //用于给予组件初始值
+                    testval: ['zhinan','shejiyuanze'],
+                },
+                mixins: [{
+                    methods: fnobj
+                }],
+                created() {
+                    var self = this;
+                    initcb(self); //实例化时先执行此方法，所有需要绑定的数据都需要在此方法中实现。
+                },
+                mounted() {
+                    var self = this;
+                    initcb(self); //实例化时先执行此方法，所有需要绑定的数据都需要在此方法中实现。
+                },
+                methods: {
+                    sub() {
+                        var self = this;
+                        ajax({
+                            url: '', //
+                            data: option.isJson ? self.formData : JSON.stringify(self.formData) //提供两种递交模式
+                        }) //递交数据
+                        endcb(self); //执行递交结束后的方法
+                    },
+                    sa(data){
+                       console.log(data) 
+                    }
+                }
+            })
+
+            //**************组件*********************//
+            //下拉框
+            Vue.component("vue-select", {
+                data() {
+                    return {
+
+                    }
+                },
+                model:{//允许一个自定义组件在使用 v-model 时定制 prop 和 event
+                //value 用作 prop 且把 input 用作 event
+                    prop: 'checked',//绑定v-model的值
+                    event: 'change'//触发事件将v-modek原来的值替换为现在选择的值
+                },
+                props: {
+                    // 这样就允许拿 `value` 这个 prop 做其它事了
+                    value: String,
+                    checked:['checked']
+                },
+                template: '<select v-on:change="updateValue($event.target.value)" :value="checked"><slot></slot></select>',
+                methods:{
+                    updateValue:function(value){
+                        this.$emit('change', value)//对应到model的change，后面传的值会回调给change事件赋值给v-model
+                        this.$emit("cval", value);
+                    }
+                }
+            })
+
+            Vue.component("vue-option", {
+                data() {
+                    return {
+                    }
+                },
+                props: ["value"],
+                template: '<option :value="value"><slot></slot></option>',
+                mounted(){
+                    var self = this;
+                },
+            })
+
+            //单选框
+            Vue.component("vue-radio-group", {
+                data() {
+                    return {
+                        
+                    }
+                },
+                model:{
+                    props:'checked',
+                    event:"change"
+                },
+                props: {
+                    value:Number,
+                    checked:['checked']
+                },
+                template: '<div v-on:change="updateValue($event.target.value)"><slot></slot></div>',
+                mounted(){
+                    this.setChild();
+                },
+                methods:{
+                    updateValue:function(value){
+                        this.$emit('change', value)//对应到model的change，后面传的值会回调给change事件赋值给v-model
+                        this.$emit("cval", value);
+                    },
+                    setChild(){
+                        vm.$emit("fromvueradio",this.value)
+                    }
+                },
+                watch:{
+                    value(){
+                        this.setChild();
+                    }
+                }
+            })
+
+            Vue.component("vue-radio",{
+                data(){
+                    return{
+                        radioval:null,
+                    }
+                },
+                props:['value','name'],
+                filters:{
+                    checkedClass(val,rad){
+                        return val == rad ? "is-checked" : ''
+                    }
+                },
+                template:'<label class="el-radio"><span class="el-radio__input" :class="value | checkedClass(radioval)"><span class="el-radio__inner"></span><input class="none" type="radio" :value="value" :name="name" ><slot></slot></label>',
+                mounted(){
+                    var self = this;
+                    vm.$on('fromvueradio',msg=>{
+                        self.radioval = msg;
+                    })
+                }
+            })
+
+            //复选框
+            Vue.component("vue-checkbox-group",{
+                data(){
+                    return{
+                    }
+                },
+                model: {
+                    prop: 'checked',
+                    event: 'change'
+                },
+                props: {
+                    // 这样就允许拿 `value` 这个 prop 做其它事了
+                    value: Array,
+                    checked:['checked']
+                },
+                template:"<div v-on:change='updateValue($event.target.value)'><slot></slot></div>",
+                mounted(){
+                    this.setChild();
+                },
+                watch:{
+                    checked(){
+                        this.setChild();
+                    }
+                },
+                methods:{
+                    updateValue:function(value){
+                        // this.$refs.checkbox.value = value 
+                        if(this.checked.includes(parseInt(value)) || this.checked.includes(value+'')){
+                            this.checked.remove(parseInt(value))
+                            this.checked.remove(value+'')
+                        }else{
+                            this.checked.push(value)
+                        }
+                        this.$emit('change', this.checked)
+                        this.$emit("cval", this.checked);
+                    },
+                    setChild(){
+                        vm.$emit("fromvuebox",this.checked)
+                    }
+                }
+            })
+
+            Vue.component("vue-checkbox",{
+                data(){
+                    return{
+                        childbox:[]
+                    }
+                },
+                filters:{
+                    ischecked(val,self){
+                        return self.includes(val+'') || self.includes(parseInt(val)) ? 'is-checked' : ''
+                    },
+                },
+                props:["value"],
+                template:"<label><span aria-checked='mixed' class='el-checkbox__input' :class='value | ischecked(childbox)'><span class='el-checkbox__inner'></span></span><input class='none' type='checkbox' :value='value' /><slot></slot></label>",
+                mounted(){
+                    var self = this;
+                    vm.$on('fromvuebox',msg=>{
+                        self.childbox = msg;
+                    })
+                },
+                
+            })
+
+        }
+
+        var fnobj = {
+            selectChange: function (data) { //自定义设置监听事件
+                console.log(data);
+                // console.log(this);
+            },
+            radioChange: function (data) {
+                console.log(data);
+            },
+            checkChange:function(data){
+                console.log(data);
+            }
+        }
+        var form = new formCom({
+            formData:{
+                selectOne:2,//设置默认select的选中
+                radioOne:3,//设置默认radio的选中
+                checkOne:['2',5],
+            },
+            getOption:{
+                checkData:[{
+                id: 1,
+                name: "选项1"
+            }, {
+                id: 2,
+                name: "选项2"
+            }, {
+                id: 3,
+                name: "选项3"
+            }, {
+                id: 4,
+                name: "选项4"
+            }]
+            }
+        }, fnobj, function (self) {
+            self.$set(self.getOption, "selectData", [{
+                id: 1,
+                name: "选项1"
+            }, {
+                id: 2,
+                name: "选项2"
+            }, {
+                id: 3,
+                name: "选项3"
+            }, {
+                id: 4,
+                name: "选项4"
+            }]) //设置下拉框默认值
+            self.$set(self.getOption, "radioData", [{
+                id: 1,
+                name: "选项1"
+            }, {
+                id: 2,
+                name: "选项2"
+            }, {
+                id: 3,
+                name: "选项3"
+            }, {
+                id: 4,
+                name: "选项4"
+            }]) //设置radio初始值
+        }, function () {})
+    </script>
+
+</body>
+
+</html>
